@@ -1,0 +1,16 @@
+{
+    "id": 12345,
+    "created_at": "2026-09-08T20:29:58+02:00",
+    "name": "#3827",
+    "note": null,
+    "note_attributes": [
+        {
+            "name": "Pid",
+            "value": 5899
+        },
+        {
+            "name": "Cid",
+            "value": 5445
+        }
+    ]
+}
