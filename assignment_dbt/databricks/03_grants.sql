@@ -2,7 +2,7 @@
 -- 03 - Unity Catalog permissions (run as a metastore / catalog admin)
 -- =============================================================================
 -- Replace before running:
---   <SERVICE_PRINCIPAL_APPLICATION_ID>  Application ID of the production SP
+--   6acc8d91-8fae-401a-a08a-58baae3c3291  Application ID of the production SP
 --                                       (Settings > Identity and access >
 --                                       Service principals > your SP)
 --   bartvanuffelen10@gmail.com          your Databricks user (developer + CI)
@@ -19,25 +19,25 @@
 -- ---------------------------------------------------------------------------
 
 -- Bronze: read the raw tables (sources)
-GRANT USE CATALOG ON CATALOG bronze_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT USE SCHEMA ON CATALOG bronze_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT SELECT ON SCHEMA bronze_production.cdc_staging TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
+GRANT USE CATALOG ON CATALOG bronze_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT USE SCHEMA ON CATALOG bronze_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT SELECT ON SCHEMA bronze_production.cdc_staging TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
 
 -- Silver: dbt creates the staging / intermediate / reference / elementary schemas
-GRANT USE CATALOG ON CATALOG silver_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT USE SCHEMA ON CATALOG silver_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT CREATE SCHEMA ON CATALOG silver_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT CREATE TABLE ON CATALOG silver_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT SELECT ON CATALOG silver_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT MODIFY ON CATALOG silver_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
+GRANT USE CATALOG ON CATALOG silver_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT USE SCHEMA ON CATALOG silver_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT CREATE SCHEMA ON CATALOG silver_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT CREATE TABLE ON CATALOG silver_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT SELECT ON CATALOG silver_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT MODIFY ON CATALOG silver_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
 
 -- Gold: dbt creates the marketing schema and its tables
-GRANT USE CATALOG ON CATALOG gold_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT USE SCHEMA ON CATALOG gold_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT CREATE SCHEMA ON CATALOG gold_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT CREATE TABLE ON CATALOG gold_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT SELECT ON CATALOG gold_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
-GRANT MODIFY ON CATALOG gold_production TO `<SERVICE_PRINCIPAL_APPLICATION_ID>`;
+GRANT USE CATALOG ON CATALOG gold_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT USE SCHEMA ON CATALOG gold_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT CREATE SCHEMA ON CATALOG gold_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT CREATE TABLE ON CATALOG gold_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT SELECT ON CATALOG gold_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
+GRANT MODIFY ON CATALOG gold_production TO `6acc8d91-8fae-401a-a08a-58baae3c3291`;
 
 -- The SP also needs "Can use" on the SQL warehouse:
 -- SQL Warehouses > <warehouse> > Permissions > add the SP with "Can use".
@@ -81,6 +81,6 @@ GRANT SELECT ON SCHEMA gold_production.marketing TO `marketing_analysts`;
 -- ---------------------------------------------------------------------------
 -- Verify
 -- ---------------------------------------------------------------------------
-SHOW GRANTS `<SERVICE_PRINCIPAL_APPLICATION_ID>` ON CATALOG silver_production;
-SHOW GRANTS `<SERVICE_PRINCIPAL_APPLICATION_ID>` ON CATALOG gold_production;
+SHOW GRANTS `6acc8d91-8fae-401a-a08a-58baae3c3291` ON CATALOG silver_production;
+SHOW GRANTS `6acc8d91-8fae-401a-a08a-58baae3c3291` ON CATALOG gold_production;
 SHOW GRANTS `bartvanuffelen10@gmail.com` ON CATALOG ci_development;
