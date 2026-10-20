@@ -1,0 +1,15 @@
+[project]
+name = "marketing-data-platform"
+version = "1.0.0"
+description = "Unified Facebook + Snapchat marketing data platform on Databricks, built with dbt."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "dbt-core>=1.10,<2.0",
+    "dbt-databricks>=1.10,<2.0",
+    "elementary-data[databricks]>=0.20,<1.0",
+    "sqlfluff>=3.2,<4.0",
+]
+
+[tool.uv]
+package = false

@@ -1,0 +1,7 @@
+packages:
+  - package: dbt-labs/dbt_utils
+    version: [">=1.3.0", "<2.0.0"]
+
+  # keep in step with the elementary-data CLI version in pyproject.toml / uv.lock
+  - package: elementary-data/elementary
+    version: 0.26.1

@@ -1,0 +1,26 @@
+version: 2
+
+seeds:
+  - name: fx_rates_annual
+    description: >
+      ECB euro reference rates, annual averages (source: ECB via Bank of
+      Finland). units_per_eur = units of currency_code per 1 EUR, so
+      spend_eur = spend / units_per_eur. Annual averages are a deliberate v1
+      simplification; replace with daily ECB rates if finance needs exact
+      conversion. Add a row before loading a new year or currency - the
+      fct_marketing_fx_rate_available test fails otherwise.
+    config:
+      column_types:
+        rate_year: int
+        currency_code: string
+        units_per_eur: decimal(12,6)
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [rate_year, currency_code]
+    columns:
+      - name: units_per_eur
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0, inclusive: false}

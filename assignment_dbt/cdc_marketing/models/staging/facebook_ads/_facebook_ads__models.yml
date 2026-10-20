@@ -1,0 +1,99 @@
+version: 2
+
+models:
+  - name: stg_facebook_ads__ad_stats
+    description: >
+      Typed and renamed Facebook daily stats. **Grain:** one row per ad per day.
+      Metric NULLs are preserved (they mean "nothing reported") and resolved
+      in int_marketing__ad_stats_unioned.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [ad_id, date_day]
+    columns:
+      - name: ad_id
+        description: Facebook ad id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_facebook_ads__ads')
+                field: ad_id
+      - name: account_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_facebook_ads__accounts')
+                field: account_id
+      - name: date_day
+        description: Reporting day.
+        data_tests: [not_null]
+      - name: spend
+        description: Spend in the account currency.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: impressions
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: clicks
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+
+  - name: stg_facebook_ads__ads
+    description: Facebook ads. **Grain:** one row per ad.
+    columns:
+      - name: ad_id
+        data_tests: [not_null, unique]
+      - name: ad_group_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_facebook_ads__ad_sets')
+                field: ad_group_id
+      - name: campaign_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_facebook_ads__campaigns')
+                field: campaign_id
+      - name: ad_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [ACTIVE, PAUSED, ARCHIVED, DELETED]
+              config:
+                severity: warn
+
+  - name: stg_facebook_ads__ad_sets
+    description: Facebook ad sets, renamed to ad_group_*. **Grain:** one row per ad set.
+    columns:
+      - name: ad_group_id
+        data_tests: [not_null, unique]
+
+  - name: stg_facebook_ads__campaigns
+    description: Facebook campaigns. **Grain:** one row per campaign.
+    columns:
+      - name: campaign_id
+        data_tests: [not_null, unique]
+      - name: campaign_name
+        data_tests: [not_null]
+
+  - name: stg_facebook_ads__accounts
+    description: Facebook ad accounts. **Grain:** one row per account.
+    columns:
+      - name: account_id
+        data_tests: [not_null, unique]
+      - name: currency_code
+        description: ISO currency all spend of this account is reported in.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [EUR, USD]

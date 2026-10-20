@@ -1,0 +1,76 @@
+version: 2
+
+models:
+  - name: rpt_marketing_campaign_performance_daily
+    description: >
+      **Start here.** Daily campaign performance across Facebook and Snapchat,
+      with readable names and the standard KPIs. Intended for analysts, BI
+      dashboards and AI agents.
+
+      **Grain:** one row = one campaign, on one platform, on one day.
+
+      **How to aggregate:** sum `spend_eur`, `impressions`, `clicks`; then
+      recompute ratios from the sums, e.g.
+      `sum(spend_eur) / nullif(sum(clicks), 0)` for CPC. Never average the
+      row-level `ctr`, `cpc_eur` or `cpm_eur` columns.
+
+      **Coverage:** Facebook 2025; Snapchat 2024-01-01 to 2024-12-02. The
+      platforms have no overlapping period.
+    config:
+      meta:
+        owner: marketing-data
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [platform, campaign_key, date_day]
+    columns:
+      - name: campaign_performance_id
+        description: Primary key = hash(campaign_key, date_day).
+        data_tests: [not_null, unique]
+      - name: date_day
+        description: Day of delivery.
+        data_tests: [not_null]
+      - name: date_month
+        description: First day of the month - use for monthly reporting.
+      - name: platform
+        description: "'facebook' or 'snapchat'."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [facebook, snapchat]
+      - name: campaign_key
+        description: Joins to dim_marketing_campaigns.
+        data_tests: [not_null]
+      - name: campaign_id
+        description: Platform-native campaign id.
+      - name: campaign_name
+        description: Current campaign name.
+        data_tests: [not_null]
+      - name: account_id
+        description: Ad account id.
+      - name: account_name
+        description: Ad account name (NULL for Snapchat).
+      - name: spend_eur
+        description: Amount spent, in EUR.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: impressions
+        description: Times the campaign's ads were shown.
+        data_tests: [not_null]
+      - name: clicks
+        description: Clicks on the campaign's ads.
+        data_tests: [not_null]
+      - name: active_ads
+        description: Number of ads with delivery that day.
+      - name: ctr
+        description: Click-through rate = clicks / impressions (0.01 = 1%). NULL when impressions = 0.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0, max_value: 1}
+      - name: cpc_eur
+        description: Cost per click in EUR = spend_eur / clicks. NULL when clicks = 0.
+      - name: cpm_eur
+        description: Cost per 1,000 impressions in EUR = spend_eur / impressions x 1000. NULL when impressions = 0.

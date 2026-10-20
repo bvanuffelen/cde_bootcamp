@@ -1,0 +1,31 @@
+[sqlfluff]
+dialect = databricks
+templater = jinja
+max_line_length = 120
+# layout rules that fight with readable jinja blocks
+exclude_rules = LT05, ST06, AM04, RF04
+large_file_skip_byte_limit = 50000
+
+[sqlfluff:templater:jinja]
+apply_dbt_builtins = True
+load_macros_from_path = macros
+library_path = .sqlfluff_libs
+
+[sqlfluff:templater:jinja:context]
+target = {"name": "dev", "schema": "dbt_dev", "database": "ci_development"}
+
+[sqlfluff:indentation]
+tab_space_size = 4
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = lower
+
+[sqlfluff:templater:jinja:macros]
+# stand-ins for dbt's built-in cross-database macros (lint only)
+dateadd = {% macro dateadd(datepart, interval, from_date_or_timestamp) %}dateadd({{ datepart }}, {{ interval }}, {{ from_date_or_timestamp }}){% endmacro %}

@@ -1,0 +1,61 @@
+name: cdc_marketing
+version: "1.0.0"
+profile: cdc_marketing
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - target
+  - dbt_packages
+  - logs
+
+flags:
+  require_generic_test_arguments_property: true
+  # required by Elementary (it overrides built-in materializations)
+  require_explicit_package_overrides_for_builtin_materializations: false
+  source_freshness_run_project_hooks: true
+
+vars:
+  # Days re-processed by incremental models to absorb late spend restatements.
+  marketing_lookback_days: 3
+
+# ---------------------------------------------------------------------------
+# Where things land. Catalog/schema below are only applied in `production`
+# (see macros/generate_*_name.sql). In dev and ci every model is built in a
+# single personal / per-PR schema inside the ci_development catalog.
+# ---------------------------------------------------------------------------
+models:
+  cdc_marketing:
+    staging:
+      +materialized: view
+      +database: silver_production
+      +schema: marketing_staging
+
+    intermediate:
+      +materialized: table
+      +database: silver_production
+      +schema: marketing_intermediate
+
+    mart:
+      +materialized: table
+      +database: gold_production
+      +schema: marketing
+      # write model/column descriptions to Unity Catalog comments so BI tools
+      # and AI agents see the documentation next to the data
+      +persist_docs:
+        relation: true
+        columns: true
+
+  elementary:
+    +database: silver_production
+    +schema: elementary
+
+seeds:
+  cdc_marketing:
+    +database: silver_production
+    +schema: marketing_reference

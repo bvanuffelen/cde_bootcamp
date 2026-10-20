@@ -1,0 +1,25 @@
+# secrets
+.env
+*.env
+!.env.template
+
+# dbt
+cdc_marketing/target/
+cdc_marketing/dbt_packages/
+cdc_marketing/logs/
+cdc_marketing/.user.yml
+logs/
+
+# elementary
+cdc_marketing/edr_target/
+edr_target/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/

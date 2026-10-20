@@ -1,0 +1,97 @@
+version: 2
+
+models:
+  - name: stg_snapchat_ads__ad_stats
+    description: >
+      Typed and renamed Snapchat daily stats. **Grain:** one row per ad per day
+      per country (NOT unique on ad + day alone). Summed to ad x day in
+      int_marketing__ad_stats_unioned; kept per country in
+      fct_snapchat_ads_country_daily.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [ad_id, date_day, country_code]
+    columns:
+      - name: ad_id
+        description: Snapchat ad id (UUID), renamed from ad_detail_id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_snapchat_ads__ads')
+                field: ad_id
+      - name: date_day
+        data_tests: [not_null]
+      - name: country_code
+        description: Lowercase ISO-2 country code.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [de, at, ch, us]
+              config:
+                severity: warn   # a new market should be reviewed, not block a deploy
+      - name: currency_code
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [EUR, USD]
+      - name: spend
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: impressions
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: clicks
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+
+  - name: stg_snapchat_ads__ads
+    description: Snapchat ads. **Grain:** one row per ad.
+    columns:
+      - name: ad_id
+        data_tests: [not_null, unique]
+      - name: ad_group_id
+        description: >
+          Parent ad group. ~26% of the referenced ad groups are missing from the
+          ad group export (none of those ads have stats) - hence warn.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_snapchat_ads__ad_groups')
+                field: ad_group_id
+              config:
+                severity: warn
+
+  - name: stg_snapchat_ads__ad_groups
+    description: >
+      Snapchat ad group history. **Grain:** one row per ad group VERSION -
+      ad_group_id is intentionally not unique here.
+    columns:
+      - name: ad_group_version_id
+        data_tests: [not_null, unique]
+      - name: ad_group_id
+        data_tests: [not_null]
+      - name: campaign_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_snapchat_ads__campaigns')
+                field: campaign_id
+
+  - name: stg_snapchat_ads__campaigns
+    description: Snapchat campaigns. **Grain:** one row per campaign.
+    columns:
+      - name: campaign_id
+        data_tests: [not_null, unique]
+      - name: account_id
+        data_tests: [not_null]
+      - name: campaign_name
+        data_tests: [not_null]

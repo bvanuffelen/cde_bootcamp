@@ -1,0 +1,77 @@
+name: dbt CI
+
+# Every pull request into main is linted and fully built + tested in its own
+# isolated schema: ci_development.pr_<PR number>. Nothing reaches production
+# unless this passes (enforce with a branch protection rule on main).
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "assignment_dbt/**"
+      - ".github/workflows/dbt_*.yml"
+      - ".github/actions/setup-dbt-assignment/**"
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DBT_TARGET: ci
+  DBT_CI_SCHEMA: pr_${{ github.event.pull_request.number }}
+  DBT_PROFILES_DIR: .
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_CI_TOKEN }}
+  DO_NOT_TRACK: "1"
+
+defaults:
+  run:
+    working-directory: assignment_dbt/cdc_marketing
+
+jobs:
+  lint:
+    name: Lint SQL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-dbt-assignment
+      - name: sqlfluff
+        run: uv run sqlfluff lint models tests analyses
+
+  build:
+    name: dbt build (ci)
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-dbt-assignment
+
+      - name: Check connection
+        run: uv run dbt debug
+
+      # --full-refresh: every push rebuilds the PR schema from scratch, so a
+      # PR is always validated exactly as production would build it fresh.
+      - name: Build and test all models
+        run: uv run dbt build --full-refresh
+
+      - name: Source freshness (informational)
+        run: uv run dbt source freshness
+        continue-on-error: true
+
+      - name: Generate documentation
+        run: uv run dbt docs generate --static
+
+      - name: Upload docs and run results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-docs-pr-${{ github.event.pull_request.number }}
+          path: |
+            assignment_dbt/cdc_marketing/target/static_index.html
+            assignment_dbt/cdc_marketing/target/run_results.json
+            assignment_dbt/cdc_marketing/target/manifest.json
+          retention-days: 14
