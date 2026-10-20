@@ -1,0 +1,79 @@
+name: dbt deploy production
+
+# Runs after a merge into main (and daily, to pick up new data).
+# Authenticates as the Databricks Service Principal via OAuth M2M -
+# no personal access token is involved in production.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "assignment_dbt/**"
+      - ".github/workflows/dbt_*.yml"
+      - ".github/actions/setup-dbt-assignment/**"
+  schedule:
+    - cron: "0 5 * * *"   # 05:00 UTC daily
+  workflow_dispatch:
+
+concurrency:
+  group: production
+  cancel-in-progress: false   # never interrupt a production run
+
+permissions:
+  contents: read
+
+env:
+  DBT_TARGET: production
+  DBT_PROFILES_DIR: .
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_SP_CLIENT_ID }}
+  DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_SP_CLIENT_SECRET }}
+  DO_NOT_TRACK: "1"
+
+jobs:
+  deploy:
+    name: dbt build (production)
+    runs-on: ubuntu-latest
+    # GitHub environment "production": holds the SP secrets and can require
+    # a reviewer approval before the job starts.
+    environment: production
+    defaults:
+      run:
+        working-directory: assignment_dbt/cdc_marketing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-dbt-assignment
+
+      - name: Check connection (as Service Principal)
+        run: uv run dbt debug
+
+      - name: Source freshness
+        run: uv run dbt source freshness
+        continue-on-error: true   # stale data is reported, not a reason to skip the build
+
+      - name: Build and test
+        run: uv run dbt build
+
+      - name: Generate documentation
+        if: always()
+        run: uv run dbt docs generate --static
+
+      - name: Elementary observability report
+        if: always()
+        run: >
+          uv run edr report
+          --profiles-dir .
+          --profile-target production
+          --file-path edr_target/elementary_report.html
+
+      - name: Upload docs and Elementary report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-reports-${{ github.run_number }}
+          path: |
+            assignment_dbt/cdc_marketing/target/static_index.html
+            assignment_dbt/cdc_marketing/edr_target/elementary_report.html
+            assignment_dbt/cdc_marketing/target/run_results.json
+          retention-days: 30

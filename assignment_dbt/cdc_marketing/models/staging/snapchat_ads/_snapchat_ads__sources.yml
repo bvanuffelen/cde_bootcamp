@@ -1,0 +1,46 @@
+version: 2
+
+sources:
+  - name: snapchat_ads
+    description: >
+      Raw Snapchat Ads exports, loaded unchanged into the Bronze layer by
+      databricks/02_load_bronze.sql (all columns STRING, missing values 'null').
+      Hierarchy: account -> campaign -> ad group -> ad. Stats are per ad,
+      per day, per country.
+    database: bronze_production
+    schema: cdc_staging
+    config:
+      loaded_at_field: _loaded_at
+      freshness:
+        warn_after: {count: 2, period: day}
+      meta:
+        owner: marketing-data
+        platform: snapchat
+
+    tables:
+      - name: ad_stats
+        identifier: snapchat_ads_stats
+        description: Daily stats. One row per ad per day per country.
+        columns:
+          - name: ad_detail_id
+            description: Snapchat ad id (UUID). Same value as ad_history.ad_id.
+          - name: ad_country
+            description: ISO-2 country of delivery (de, at, ch, us).
+          - name: ad_currency_code
+            description: Currency of ad_spend (EUR in this export).
+          - name: data_src
+            description: Constant 'snapchat_ads'. Not used.
+
+      - name: ads
+        identifier: snapchat_ads_ad_history_new_ad_names
+        description: Snapchat ads with parent ad group. One row per ad.
+
+      - name: ad_groups
+        identifier: snapchat_ads_adgroup_history_new_ad_group_names
+        description: >
+          Ad group HISTORY - an ad group can appear several times with
+          different ad_group_updated_at values. Latest row = current version.
+
+      - name: campaigns
+        identifier: snapchat_ads_campaign_history_new_campaign_names
+        description: Snapchat campaigns with parent account. One row per campaign.

@@ -1,0 +1,52 @@
+version: 2
+
+sources:
+  - name: facebook_ads
+    description: >
+      Raw Facebook Ads exports, loaded unchanged into the Bronze layer by
+      databricks/02_load_bronze.sql. Every column is stored as STRING
+      (types are applied in staging); missing values are the text 'null'.
+      Hierarchy: account -> campaign -> ad set -> ad. Stats are per ad per day.
+    database: bronze_production
+    schema: cdc_staging
+    config:
+      loaded_at_field: _loaded_at
+      freshness:
+        warn_after: {count: 2, period: day}
+      meta:
+        owner: marketing-data
+        platform: facebook
+
+    tables:
+      - name: ad_stats
+        identifier: ads_stats
+        description: Daily delivery and spend per ad. One row per ad per day.
+        columns:
+          - name: ad_id
+            description: Facebook ad id (numeric, up to 18 digits).
+          - name: account_id
+            description: Ad account that owns the ad.
+          - name: ad_spend
+            description: Amount spent, in the account currency.
+          - name: ad_impressions
+            description: Impressions. 'null' when nothing was delivered.
+          - name: ad_clicks
+            description: Clicks. 'null' when no clicks were recorded.
+          - name: ad_date
+            description: Reporting day (YYYY-MM-DD).
+
+      - name: ads
+        identifier: new_ads_de_randomized
+        description: Ad attributes incl. parent ad set, campaign and account. One row per ad.
+
+      - name: ad_sets
+        identifier: new_adgroup_de_randomized
+        description: Ad sets (Facebook's name for ad groups). One row per ad set.
+
+      - name: campaigns
+        identifier: new_campaign_de_randomized
+        description: Campaign names. One row per campaign. Has no account_id.
+
+      - name: accounts
+        identifier: new_acccount_de_randomized
+        description: Ad accounts incl. their reporting currency (EUR or USD).

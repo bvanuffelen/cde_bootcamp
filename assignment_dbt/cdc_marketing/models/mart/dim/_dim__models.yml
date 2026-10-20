@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: dim_marketing_ads
+    description: >
+      Every Facebook and Snapchat ad with its ad group, campaign and account.
+      **Grain:** one row per platform x ad. Join to the facts on `ad_key`.
+    columns:
+      - name: ad_key
+        description: Surrogate key = hash(platform, ad_id). Ad ids are only unique within a platform.
+        data_tests: [not_null, unique]
+      - name: campaign_key
+        description: >
+          Surrogate key = hash(platform, campaign_id); joins to dim_marketing_campaigns.
+          NULL for ~300 Snapchat ads whose ad group is missing from the export.
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+          - relationships:
+              arguments:
+                to: ref('dim_marketing_campaigns')
+                field: campaign_key
+      - name: platform
+        description: Advertising platform, lowercase.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [facebook, snapchat]
+      - name: ad_id
+        description: Platform-native ad id.
+        data_tests: [not_null]
+      - name: ad_name
+        description: Ad (creative) name as set in the platform.
+      - name: ad_status
+        description: ACTIVE / PAUSED / ARCHIVED / DELETED. Facebook only.
+      - name: ad_group_id
+        description: Ad group id (Facebook "ad set").
+      - name: ad_group_name
+        description: Ad group / ad set name.
+      - name: campaign_id
+        description: Platform-native campaign id.
+      - name: campaign_name
+        description: Campaign name.
+      - name: account_id
+        description: Platform-native ad account id.
+      - name: account_name
+        description: Ad account name. NULL for Snapchat (not exported).
+
+  - name: dim_marketing_campaigns
+    description: >
+      Every Facebook and Snapchat campaign, including campaigns that never spent.
+      **Grain:** one row per platform x campaign. Join on `campaign_key`.
+    columns:
+      - name: campaign_key
+        description: Surrogate key = hash(platform, campaign_id).
+        data_tests: [not_null, unique]
+      - name: platform
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [facebook, snapchat]
+      - name: campaign_id
+        description: Platform-native campaign id.
+        data_tests: [not_null]
+      - name: campaign_name
+        description: Campaign name as set in the platform.
+        data_tests: [not_null]
+      - name: account_id
+        description: Owning ad account. NULL for Facebook campaigns without ads (account is derived from ads).
+      - name: account_name
+        description: Ad account name. NULL for Snapchat.

@@ -1,0 +1,21 @@
+name: Set up dbt (assignment_dbt)
+description: Install the assignment_dbt Python dependencies with uv (from uv.lock) and dbt packages.
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: assignment_dbt/uv.lock
+
+    - name: Install Python dependencies (locked)
+      shell: bash
+      working-directory: assignment_dbt
+      run: uv sync --frozen
+
+    - name: Install dbt packages
+      shell: bash
+      working-directory: assignment_dbt/cdc_marketing
+      run: uv run dbt deps

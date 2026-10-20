@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: int_facebook_ads__ads_enriched
+    description: >
+      Facebook ads with ad set, campaign and account flattened onto each ad
+      (latest version of every entity). **Grain:** one row per Facebook ad.
+      Materialized as a table because both dim_marketing_ads and
+      dim_marketing_campaigns read it.
+    columns:
+      - name: ad_id
+        data_tests: [not_null, unique]
+      - name: campaign_name
+        data_tests: [not_null]
+      - name: account_name
+        data_tests: [not_null]
+
+  - name: int_snapchat_ads__ads_enriched
+    description: >
+      Snapchat ads with ad group (latest version), campaign and account
+      flattened onto each ad. Same columns as int_facebook_ads__ads_enriched.
+      **Grain:** one row per Snapchat ad.
+    columns:
+      - name: ad_id
+        data_tests: [not_null, unique]
+      - name: campaign_id
+        description: NULL for ~300 ads whose ad group is missing from the export (no stats affected).
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+
+  - name: int_marketing__ad_stats_unioned
+    description: >
+      **Ephemeral.** Facebook and Snapchat stats at a common grain - one row
+      per platform x ad x day - with NULL metrics resolved to 0 and empty rows
+      removed. Ephemeral because its only consumer is the incremental fact:
+      it is inlined as a CTE, so the fact's incremental filter is pushed down
+      and nothing is stored twice. Tests live on the fact (dbt cannot test
+      ephemeral models directly).

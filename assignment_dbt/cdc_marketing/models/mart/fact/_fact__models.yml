@@ -1,0 +1,173 @@
+version: 2
+
+models:
+  - name: fct_marketing_ad_performance_daily
+    description: >
+      **Unified paid-social performance fact** for Facebook and Snapchat.
+
+      **Grain:** one row = the delivery of one ad, on one platform, on one day.
+      Snapchat country rows are summed to this grain.
+
+      **Spend:** use `spend_eur` for any total. `spend` is in the account's
+      own currency (`currency_code`); some Facebook accounts report in USD.
+
+      **Additive metrics only.** Ratios (CTR, CPC, CPM) are not stored here
+      because they cannot be summed; compute them from sums, or use
+      rpt_marketing_campaign_performance_daily.
+
+      **Materialization:** incremental MERGE on `ad_performance_id` with a
+      per-platform watermark and a `marketing_lookback_days` (3) lookback.
+
+      **Coverage:** Facebook 2025-01-01 to 2025-12-31; Snapchat 2024-01-01 to
+      2024-12-02 (no data in Apr, May, Oct 2024).
+    config:
+      contract:
+        enforced: true
+      meta:
+        owner: marketing-data
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [platform, ad_id, date_day]
+      - dbt_utils.expression_is_true:
+          name: fct_marketing_clicks_not_above_impressions
+          arguments:
+            expression: "clicks <= impressions"
+      - dbt_utils.expression_is_true:
+          name: fct_marketing_no_future_dates
+          arguments:
+            expression: "date_day <= current_date"
+      - dbt_utils.expression_is_true:
+          # A missing FX rate in the seed would make spend_eur NULL and
+          # silently understate every total -> hard failure.
+          name: fct_marketing_fx_rate_available
+          arguments:
+            expression: "spend_eur is not null"
+      - elementary.volume_anomalies:
+          config:
+            severity: warn
+      - elementary.schema_changes:
+          config:
+            severity: warn
+
+    columns:
+      - name: ad_performance_id
+        description: Primary key = hash(platform, ad_id, date_day).
+        data_type: string
+        data_tests: [not_null, unique]
+      - name: date_day
+        description: Day the ads were delivered (platform reporting day).
+        data_type: date
+        data_tests: [not_null]
+      - name: date_month
+        description: First day of the month of date_day.
+        data_type: date
+      - name: platform
+        description: Advertising platform - 'facebook' or 'snapchat'.
+        data_type: string
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [facebook, snapchat]
+      - name: ad_key
+        description: Joins to dim_marketing_ads.
+        data_type: string
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_marketing_ads')
+                field: ad_key
+      - name: campaign_key
+        description: Joins to dim_marketing_campaigns.
+        data_type: string
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_marketing_campaigns')
+                field: campaign_key
+      - name: ad_id
+        description: Platform-native ad id (STRING - Facebook ids exceed 2^53).
+        data_type: string
+        data_tests: [not_null]
+      - name: ad_group_id
+        description: Platform-native ad group / ad set id.
+        data_type: string
+      - name: campaign_id
+        description: Platform-native campaign id.
+        data_type: string
+        data_tests: [not_null]
+      - name: account_id
+        description: Platform-native ad account id.
+        data_type: string
+        data_tests: [not_null]
+      - name: currency_code
+        description: ISO currency of `spend` (EUR or USD).
+        data_type: string
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [EUR, USD]
+      - name: spend
+        description: Amount spent in `currency_code`. Do not sum across currencies.
+        data_type: decimal(18,4)
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: spend_eur
+        description: >
+          **Business definition of spend.** Amount spent converted to EUR with
+          the ECB annual average rate (seed fx_rates_annual).
+        data_type: decimal(18,4)
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: impressions
+        description: Times the ads were shown. 0 when the platform reported nothing.
+        data_type: bigint
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: clicks
+        description: Clicks on the ads. 0 when the platform reported nothing.
+        data_type: bigint
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: dbt_updated_at
+        description: When dbt last wrote this row (shows which days the lookback re-processed).
+        data_type: timestamp
+
+  - name: fct_snapchat_ads_country_daily
+    description: >
+      Snapchat performance by delivery country. **Grain:** one row per
+      Snapchat ad per day per country. Spend is EUR (Snapchat account currency).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [ad_id, date_day, country_code]
+    columns:
+      - name: snapchat_country_performance_id
+        description: Primary key = hash(ad_id, date_day, country_code).
+        data_tests: [not_null, unique]
+      - name: country_code
+        description: Lowercase ISO-2 country of delivery.
+        data_tests: [not_null]
+      - name: ad_key
+        description: Joins to dim_marketing_ads.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_marketing_ads')
+                field: ad_key
+      - name: spend
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
